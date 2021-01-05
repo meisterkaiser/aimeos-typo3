@@ -48,11 +48,35 @@ class Composer
 		{
 			$event->getIO()->write( 'Creating symlink to Aimeos extension directory' );
 
-			$path = dirname( $installer->getInstallPath( $package ) );
-			self::createLink( '../../../../../../' . $path, $t3path . '/Resources/Private/Extensions' );
+            $path = self::getRelativePathToProjectRoot($event) ?: '../../../../../../';
+            self::createLink( $path . dirname( $installer->getInstallPath( $package ) ), $t3path . '/Resources/Private/Extensions' );
 		}
 	}
 
+    /**
+     * Traverse directory structure upwards until project composer.json can be found
+     */
+    protected static function getRelativePathToProjectRoot( Object $event )
+    {
+        $initial = '../../../'; // start search outside of extension directory
+        $needle = 'composer.json';
+        $current  = realpath(__DIR__ . '/' . $initial );
+        $relativePathToProjectRoot = $initial;
+
+        while( $current !== '/' )
+        {
+            $current = dirname( rtrim( $current, '/' ) );
+            $relativePathToProjectRoot .= '../';
+            if( in_array( $needle, scandir( $current ) ) )
+            {
+                $event->getIO()->write('found root composer json using: ' . $relativePathToProjectRoot);
+                return $relativePathToProjectRoot;
+            }
+        }
+
+        $event->getIO()->write('could not find root composer json');
+        return false;
+    }
 
 	/**
 	 * Copies the source directory recursively to the destination
